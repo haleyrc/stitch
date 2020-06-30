@@ -1,0 +1,23 @@
+{
+  "Services": [
+    {
+      "Name": "frontend",
+      "WorkDir": "./example/frontend",
+      "Command": "npm run dev",
+      "Environment": {
+        "NEXT_PUBLIC_BACKEND_URL": "http://localhost:8080"
+      }
+    },
+    {
+      "Name": "api",
+      "WorkDir": "./example/api",
+      "Command": "./build/api",
+      "Environment": {
+        "PORT": "8080"
+      }
+    }
+  ],
+  "Environment": {
+    "MESSAGE": "Hello world!"
+  }
+}
