@@ -1,4 +1,16 @@
 {
+  "Before": [
+    {
+      "Name": "welcome",
+      "Command": "echo Hello user"
+    }
+  ],
+  "After": [
+    {
+      "Name": "goodbye",
+      "Command": "echo Goodbye user"
+    }
+  ],
   "Services": [
     {
       "Name": "frontend",

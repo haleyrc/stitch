@@ -32,7 +32,26 @@ func main() {
 		panic(err)
 	}
 
-	cmds, err := buildCommands(ctx, cfg)
+	beforeCmds, err := buildCommands(ctx, cfg, cfg.Before)
+	if err != nil {
+		panic(err)
+	}
+
+	afterCmds, err := buildCommands(ctx, cfg, cfg.After)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := runEach(beforeCmds...); err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := runEach(afterCmds...); err != nil {
+			panic(err)
+		}
+	}()
+
+	cmds, err := buildCommands(ctx, cfg, cfg.Services)
 	if err != nil {
 		panic(err)
 	}
@@ -42,35 +61,54 @@ func main() {
 	}
 }
 
-func buildCommands(ctx context.Context, cfg *Config) ([]*exec.Cmd, error) {
+// TODO (RCH): It might be better to allow for mid-stream errors but continue
+// on, especially for cleanup stuff...
+func runEach(cmds ...*exec.Cmd) error {
+	for _, cmd := range cmds {
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func buildCommands(ctx context.Context, cfg *Config, svcs []Service) ([]*exec.Cmd, error) {
 	cmds := []*exec.Cmd{}
 
-	for _, svc := range cfg.Services {
-		localEnv, err := parseEnv(ctx, cfg.Environment, svc.Environment)
+	for _, svc := range svcs {
+		cmd, err := buildCommand(ctx, cfg, svc)
 		if err != nil {
 			return nil, err
 		}
-
-		logger := Logger{
-			Writer: os.Stderr,
-			Prefix: "[" + svc.Name + "]",
-		}
-
-		parts := strings.Split(svc.Command, " ")
-		if len(parts) < 1 {
-			return nil, errors.New("no command specified for service")
-		}
-
-		cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
-		cmd.Env = localEnv
-		cmd.Dir = svc.WorkDir
-		cmd.Stderr = logger
-		cmd.Stdout = logger
-
 		cmds = append(cmds, cmd)
 	}
 
 	return cmds, nil
+}
+
+func buildCommand(ctx context.Context, cfg *Config, svc Service) (*exec.Cmd, error) {
+	localEnv, err := parseEnv(ctx, cfg.Environment, svc.Environment)
+	if err != nil {
+		return nil, err
+	}
+
+	logger := Logger{
+		Writer: os.Stderr,
+		Prefix: "[" + svc.Name + "]",
+	}
+
+	parts := strings.Split(svc.Command, " ")
+	if len(parts) < 1 {
+		return nil, errors.New("no command specified for service")
+	}
+
+	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
+	cmd.Env = localEnv
+	cmd.Dir = svc.WorkDir
+	cmd.Stderr = logger
+	cmd.Stdout = logger
+
+	return cmd, nil
 }
 
 func parseEnv(ctx context.Context, envMaps ...map[string]string) ([]string, error) {
@@ -110,6 +148,8 @@ type Service struct {
 }
 
 type Config struct {
+	Before      []Service
+	After       []Service
 	Services    []Service
 	Environment map[string]string
 }
