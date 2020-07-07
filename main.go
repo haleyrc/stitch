@@ -140,6 +140,7 @@ func envFromSystem() map[string]string {
 	return env
 }
 
+// TODO (RCH): Add a Commands field that is mutually exclusive with Command, but lets us run a sequence of commands
 type Service struct {
 	Name        string
 	WorkDir     string
